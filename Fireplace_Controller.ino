@@ -42,34 +42,9 @@
 
 */
 
+
+
 /*   Libraries not included
- 
-// RadioHead - Version: Latest 
-#include <RHCRC.h>
-#include <RHDatagram.h>
-#include <RHGenericDriver.h>
-#include <RHGenericSPI.h>
-#include <RHHardwareSPI.h>
-#include <RHMesh.h>
-#include <RHNRFSPIDriver.h>
-#include <RHReliableDatagram.h>
-#include <RHRouter.h>
-#include <RHSPIDriver.h>
-#include <RHSoftwareSPI.h>
-#include <RHTcpProtocol.h>
-#include <RH_CC110.h>
-#include <RH_MRF89.h>
-#include <RH_NRF24.h>
-#include <RH_NRF51.h>
-#include <RH_NRF905.h>
-#include <RH_RF22.h>
-#include <RH_RF24.h>
-#include <RH_RF69.h>
-#include <RH_RF95.h>
-#include <RH_Serial.h>
-#include <RH_TCP.h>
-#include <RadioHead.h>
-#include <radio_config_Si4460.h>
 
 // HardWire - Version: Latest 
 #include <HardWire.h>
@@ -79,7 +54,13 @@
 
 */
 
+/*
+// RadioHead - Version: Latest 
+#include <RH_ASK.h>
+#include <SPI.h> // Not actualy used but needed to compile
+*/
 
+/*
 // RFReceiver - Version: Latest 
 #include <RFReceiver.h>       // for 433 MHz Radio
 // https://andreasrohner.at/posts/Electronics/New-Arduino-library-for-433-Mhz-AM-Radio-Modules/
@@ -94,19 +75,22 @@
 //#include <PinChangeInterruptBoards.h>
 //#include <PinChangeInterruptPins.h>
 //#include <PinChangeInterruptSettings.h>
+*/
 
-
-// Wire - Version: Latest   // I2C Library
-#include <Wire.h>           
+      
 
 // U8g2 - Version: Latest   // I2C Displays
 #include <U8g2lib.h>
-#include <U8x8lib.h>
+//#include <U8x8lib.h>
+
+// Wire - Version: Latest   // I2C Library
+//#include <Wire.h>     
 
 // DallasTemperature - Version: Latest 
 #include <DallasTemperature.h>
 #include <OneWire.h>
 
+/*
 // IRremote - Version: Latest 
 #include <IRremote.h>
 #include <IRremoteInt.h>
@@ -115,16 +99,16 @@
 // EEPROMEx - Version: Latest 
 #include <EEPROMVar.h>
 #include <EEPROMex.h>
-
-// RadioHead - Version: Latest 
-#include <RH_ASK.h>
-#include <SPI.h> // Not actualy used but needed to compile
+*/
 
 
 
-const bool isDebug = true;              // Debug messages?
-//bool isDebug = false;
 
+
+//const bool isDebug = true;              // Debug messages?
+const bool isDebug = false;
+
+const bool isTriacDimmer = false;           // Is the motor speed control (Triac Dimmer) present
 const bool isTriacDimmerSmart = false;      // Set FALSE for local triac dimmer Sense & firing -> Dumb Module  
 //const bool isTriacDimmerSmart = true;      // Set TRUE for ATtiny85 Triac Dimmer -> 'Smart' Module
 
@@ -132,7 +116,7 @@ const bool isTempSensorPresent = false;    // Is the Temp sensor installed
 
 const bool isRF = false;                  // Is the 433MHZ ASK RF module installed
 
-const bool isOLED = false;                // Is the OLED display attached
+const bool isOLED = true;                // Is the OLED display attached
 
 
 const bool ButtonActive = LOW;    // Pushbuttons are using pull-ups.  Signal is Low when active
@@ -146,7 +130,7 @@ const byte EncodeA_PIN = 3;      // HW Int1 - CLK signal from Rotary Encoder (Pi
 const byte EncodeB_PIN = A0;      // DT (data) signal from Rotary Encoder (Pin B) - Used for reading direction
 
 const byte EncoderBounce = 5;       // Encoder Debounce time (max) in milliseconds
-const byte SwBounce = 50;           // Encoder Debounce time (max) in milliseconds
+const byte SwBounce = 50;           // Encoder Switch Debounce time (max) in milliseconds
 
 volatile int virtualPosition = 50;   // Updated by the ISR (Interrupt Service Routine)
 
@@ -169,17 +153,19 @@ volatile byte LED_Pwr[] = {50, 50, 50, 50, 50};   // PERCENTAGE of FULL Bright -
 
 
 
-volatile bool LEDsUpdate = false;   // Flag for changes to LED PWM Settings - Set by encoder ISR
+volatile bool LEDsUpdate = true;   // Flag for changes to LED PWM Settings - Set by encoder ISR
 bool shelfLEDsOn = false;        // Flag for LEDs On/Off status
 
 // **************************************************************
 // ****************** Module Set-ups ****************************
 
-// 0.91" OLED display module  128x32-------------------------------------------WORING IN THIS AREA -----------------------------------------------------------------
-/* Constructor */    // U8G2_SSD1306_128X32_UNIVISION_1_HW_I2C(rotation, [reset [, clock, data]])
-U8G2_SSD1306_128X32_UNIVISION_1_HW_I2C OLED(U8G2_R0);  // roation only setting due to HW I2C and not reset pin
-bool updateDisplay_FLAG = true;              // Set initially true to do first display
+// 0.91" OLED display module  128x32
 
+/* Constructor */    // U8G2_SSD1306_128X32_UNIVISION_1_HW_I2C(rotation, [reset [, clock, data]])
+U8G2_SSD1306_128X32_UNIVISION_1_HW_I2C OLED(U8G2_R0);  // roation is only setting due to HW I2C and no reset pin
+
+bool updateDisplay_FLAG = true;              // Set initially true to do first display
+const byte Contrast = 0;
 
 
 // Fireplace & Triac Module Control
@@ -189,13 +175,15 @@ const byte FP_Blower_PIN = A1;         // Pin Assignment for blower motor contro
 
 bool fireplaceOn_FLAG = false;             // Set initial value for if fireplace is currently On or not
 
+
 // RF Rx Module (433 MHz ASK Module)
 const byte RadioIn_PIN = A2; 
+/*
 RFReceiver RFRx(RadioIn_PIN);               // Set up RF Receiver library on RadioIn Pin
 const byte RFNodeID = 0;                    // Set this unit to Node 0  - Tx unit must be the same
 const char dataRFExpecting = "I'm Alive";   // Only valid message expected
 const byte MaxRFDataSize = 10;
-
+*/
 
 
 // IR Rx module (VS1838B)
@@ -203,7 +191,9 @@ const byte IR_Data_PIN = 8;
 
 // Temperature Sensor (DS18B20)   
 const byte TempSense_PIN = 7;
+
 /* Constructor */
+/*
 OneWire oneWire(TempSense_PIN);           // Setup a oneWire instance to communicate with any OneWire devices  
                                           // (not just Maxim/Dallas temperature ICs)
 DallasTemperature tempSensor(&oneWire);   // Pass our oneWire reference to Dallas Temperature Library. 
@@ -212,16 +202,19 @@ DallasTemperature tempSensor(&oneWire);   // Pass our oneWire reference to Dalla
 byte tempSensorAddr[8];                   // Variable to store device's uniquie ID
 const byte TempSensorResolution = 9;      // Integer value for sensor precision.  Can be 9, 10, 11 or 12 bits
 /*
-          Mode	    Resol	  Conversion time
-          9 bits	  0.5°C	    93.75 ms
-          10 bits	  0.25°C  	187.5 ms
-          11 bits	  0.125°C	  375 ms
-          12 bits	  0.0625°C	750 ms
+          Mode      Resol   Conversion time
+          9 bits    0.5°C     93.75 ms
+          10 bits   0.25°C    187.5 ms
+          11 bits   0.125°C   375 ms
+          12 bits   0.0625°C  750 ms
 */
+/*
 const unsigned int TempSensorConvTime = 100;  // Time in ms to wait between request for temp conv. and read of temperature - Based on info above.
 float currentTempC = 0.0;                 // Current Room Temperature in C
 float targetTempC = 21.0;                 // Target Room Temperature (for thermostat control)
 byte tempHysteresis = 1;                  // To prevent frequent On/Off cycles near target temp
+
+*/
 
 // **************************************************************
 // ****************** General Assignments ***********************
@@ -246,15 +239,15 @@ unsigned long currentMillis;      // Working/scratchpad variable for checking ti
 //bool isDebug = false;
 
 template<typename T> void debugPrint(T printMe, bool newLine = false) {
-	if (isDebug) {
-		if (newLine) {
-			Serial.println(printMe);
-		}
-		else {
-			Serial.print(printMe);
-		}
-		Serial.flush();
-	}
+  if (isDebug) {
+    if (newLine) {
+      Serial.println(printMe);
+    }
+    else {
+      Serial.print(printMe);
+    }
+    Serial.flush();
+  }
 }
 
 
@@ -288,12 +281,11 @@ void setup() {
   // ********************* Fireplace Setup ************************
   
   digitalWrite(FP_On_PIN, fireplaceOn_FLAG);     // Ensure FP isn't turned on at boot-up - fireplaceOn_FLAG initially set to false
-  pinMode(FP_On_PIN, OUTPUT);               // explicitly Make pin Output
-  
-  pinMode(FP_Sense_PIN, INPUT);         // for Zero Cross Detect from dumb, or Rx from 'Smart', Triac Dimmer unit
-  
+  pinMode(FP_On_PIN, OUTPUT);           // explicitly Make pin Output to control fireplae relay
+
   digitalWrite(FP_Blower_PIN, 0);       // Not enabled yet, but make sure off anyway
-  pinMode(FP_Blower_PIN, OUTPUT);         // explicitly Make pin Output
+  pinMode(FP_Blower_PIN, OUTPUT);       // for Triac trigger from dumb, or Tx to 'Smart', Triac Dimmer unit
+  pinMode(FP_Sense_PIN, INPUT);         // for Zero Cross Detect from dumb, or Rx from 'Smart', Triac Dimmer unit
   
   pinMode(ModeSwitch_PIN, INPUT_PULLUP);   // Mode Switch for Fireplace on/off - Internal Pull-up for push button
   
@@ -306,13 +298,16 @@ void setup() {
   OLED.begin();                             // Start the OLED display Object/Library
 //  OLED.setFont(u8g2_font_logisoso32_tr);    // Set the (initial?) font for 32 Pixel high
 //  OLED.setCursor(0,32);                     // Set cursor to prepare for first write
+  OLED.setContrast(Contrast);         // Set OLED contrast (0 - 255) - Lower number is slightly darker
+  OLED.setFontPosTop();               // Set Font to start from Top of character set, rather than bottom (the default)
   
   // RF Rx Module (433 MHz ASK Module)
   pinMode(RadioIn_PIN, INPUT); 
+/*
   if(isRF){                                     // If RF Module installed:
-    RFRx.begin();                               //Start the Library
-    
+    RFRx.begin();                               //Start the Library 
   }
+*/  
 
   // IR Rx module (VS1838B)
   pinMode(IR_Data_PIN, INPUT_PULLUP); 
@@ -321,6 +316,7 @@ void setup() {
   pinMode(TempSense_PIN, INPUT);     
   
   if(isTempSensorPresent){                              // If Temp sensor present:
+/*    
     tempSensor.begin();                                 // Start the Library
     tempSensor.getAddress(tempSensorAddr, 0);           // Get addrress for device at index 0  (only sensor, no loop needed)
                                                         // Addresses used as faster than doing by index.
@@ -329,15 +325,16 @@ void setup() {
     tempSensor.setWaitForConversion(false);             // Put into Async. Mode
     // tempSensor.setCheckForConversion(true);             // Program will look for flag that conversion complete    //NOT ACTUALLY SURE what this setting does.  Will just track millis
     tempSensor.requestTemperaturesByAddress(tempSensorAddr);    // Send request for current temp - To get initial value going
+*/
   }
   
     // Attach the routines to service the interrupts
   attachInterrupt(digitalPinToInterrupt(EncodeA_PIN), isr_EncoderKnob, LOW);            //Move to sub-routine that changes LED values, updates settings,wakes up backlight, etc)
                                                                         // Here just for initial testing of encoder - Or adjust to turn on Backlight of display ??
-
+/*
  if(isTriacDimmerSmart == false)        // Only attch interrupt if using dumb dimmer
   attachInterrupt(digitalPinToInterrupt(FP_Sense_PIN), isr_ZeroCrossDetect, HIGH);   // Handles when zero cross detected on dumb Triac dimmer module
-  
+ */ 
   delay(100);         // Let everything settle for 100 ms on boot-up
   
   // Ready to go!
@@ -359,18 +356,22 @@ void loop() {
   
   checkModeSwitch();            // Poll the Mode Switch once per loop  - Turn On/Off 'fireplaceOn_FLAG' Flag as needed  
   digitalWrite(FP_On_PIN, fireplaceOn_FLAG);   // Turn Fireplace On/Off based on current setting
-  
+
   checkEncoderButton();       // Poll Encoder Pushbutton    // Currently just changes shelf lights flag
+
   
   if (LEDsUpdate == true) {   // Check if any LED settings have been changed
-    updateLEDs();               // If anychanged, update and clear flag
+    updateLEDs();               // If any changed, update and clear flag
+    updateDisplay_FLAG = true;  
   }
   
   if(isTempSensorPresent){            // If the temp sensor present
+    debugPrint("Temp check routine entered",1);
     checkRoomTemp();                  // get current temp
   }
   
   if(isRF){                            // If the RF module is connected
+    debugPrint("RF Routine entered",1);
     lightsOnRF = checkRFRecieved();   // Has a valid signal been received
     
     if(shelfLEDsOn == true && lightsOnRF == false){                          // if the lights are on, but RF signal not received
@@ -381,34 +382,18 @@ void loop() {
     }
   }
   
-  if(isOLED){               // If the display is present
-    if(updateDisplay_FLAG == true){      // And it needs updating
-      updateDisplay();
-    }
+  if(updateDisplay_FLAG == true){      // Display needs updating?
+    updateDisplay();
   }
+
   
   
 }   // End Main Loop
 
 
+ 
 
 
-
-
-  
-//   Below here is Sample loop Code - for Example only!!
-/*
-  // If the current rotary switch position has changed then update everything
-  if (virtualPosition != lastCount) {
-
-    // Write out to serial monitor the value and direction
-    debugPrint(virtualPosition > lastCount ? "Up  :" : "Down:");
-    debugPrint(virtualPosition,1);
-
-    // Keep track of this new value
-    lastCount = virtualPosition ;
-  }
-*/
 void doNothing();       //spacer for code readability - compiler should ignore
 
 // ------------------------------------------------------------------
@@ -420,12 +405,16 @@ void updateDisplay(){
   do {
     /* all graphics commands have to appear within the loop body. */    
     OLED.setFont(u8g2_font_logisoso32_tr);    // Set the font for 32 Pixel high
-    OLED.setCursor(0,16);                     // Set cursor to prepare for write   // value 16 for testing - should be 0 or 32??
+    OLED.setCursor(0,0);                     // Set cursor to prepare for write  
     //u8g2.drawStr(0,20,"Hello World!");
-    OLED.print(currentTempC,1);                 // Print the current temp with 1 decimal point
-    OLED.print(" C");                           // add a C for Celsius
+//    OLED.print(currentTempC,1);                 // Print the current temp with 1 decimal point
+//    OLED.print(" C");                           // add a C for Celsius
+    OLED.print(virtualPosition);
   } while ( OLED.nextPage() );
   updateDisplay_FLAG = false;            // Reset Flag
+ 
+  debugPrint("Update Display Routine finished",1);
+  debugPrint("      ",1);
 }
 
 
@@ -452,7 +441,7 @@ void checkModeSwitch() {
 // checkRFRecieved     checkRFRecieved     checkRFRecieved     checkRFRecieved     checkRFRecieved
 // ------------------------------------------------------------------
 bool checkRFRecieved(){
-  
+/*  
   char RFData[MaxRFDataSize];                        // make array to hold received RF data
   byte senderId = 0;
   byte packageId = 0;
@@ -466,6 +455,7 @@ bool checkRFRecieved(){
     }
     
   }
+*/
   return false;                          // if buffer not ready - no data received since last check, or wrong data, return false
 }
 
@@ -473,8 +463,9 @@ bool checkRFRecieved(){
 // updateLEDs     updateLEDs     updateLEDs     updateLEDs     updateLEDs
 // ------------------------------------------------------------------
 void updateLEDs() {
+  debugPrint("Update LEDs routine entered",1);
   if (shelfLEDsOn == true) {                                     // If LEDs should be on:
-  
+    debugPrint("LEDs should be On",1);
     for(int i = 1; i <= 4; i++){                            // Set testing 'virtual position' to all LED settings
       LED_Pwr[i] = virtualPosition;                            // remove once code for individual power settings written
     }
@@ -483,14 +474,19 @@ void updateLEDs() {
     for(int i = 1; i <= 4; i++){                            // Update PWM setting to latest values from Power setting
       analogWrite(LED_PIN[i],map(LED_Pwr[i],0,LED_PwrMax,0,255));      // Map LED_PWR Value (Percentage of full On) to actual PWM value
     }
+    debugPrint("LED PWM written ");
+    debugPrint(map(LED_Pwr[1],0,LED_PwrMax,0,255),1);
   }
   else {                                                    // If Shelf LEDs should be off, turn off
+    debugPrint("LEDs off",1);
     for(int i = 1; i <= 4; i++){
       digitalWrite(LED_PIN[i],LOW);
     }
   }
-  LEDsUpdate = false;                                   // Reset Flag
   
+  LEDsUpdate = false;                                   // Reset Flag
+
+  debugPrint("updateLEDs function virtual Position: ");
   debugPrint(virtualPosition,1);
 }
 
@@ -500,12 +496,28 @@ void updateLEDs() {
 // ------------------------------------------------------------------
 void checkEncoderButton ()  {
   static unsigned long lastEncoderButtonPress = 0;       // Static =  Variable to retain value (like global) but only used in this routine.
-  // unsigned long interruptTime = millis();
-  
-  if (currentMillis - lastEncoderButtonPress > SwBounce) {     // If checked faster than SwBounce ms, assume it's a bounce and ignore
-    shelfLEDsOn = !shelfLEDsOn;                                   //  If not a bounce ... Toggle LEDs ON / Off Flag
-    LEDsUpdate = true;                                         // Set Flag to indicate an LED Setting has changed
+  static bool encoderSwStillPressed = false;
+
+  if(digitalRead(EncodeSW_PIN) == ButtonActive){
+    debugPrint("Button pressed",1);
+    if(encoderSwStillPressed == false){
+      if (currentMillis - lastEncoderButtonPress > SwBounce) {     // If checked faster than SwBounce ms, assume it's a bounce and ignore
+        shelfLEDsOn = !shelfLEDsOn;                                   //  If not a bounce ... Toggle LEDs ON / Off Flag
+        LEDsUpdate = true;                                         // Set Flag to indicate an LED Setting has changed
+        encoderSwStillPressed = true;
+        
+        debugPrint("Button press registered",1);
+        debugPrint("              - LEDS should be ");
+        debugPrint(shelfLEDsOn,1);
+      }  
+    }
+    
   }
+    else if(encoderSwStillPressed == true){
+      lastEncoderButtonPress = currentMillis;                   // Update time of last change
+      encoderSwStillPressed = false;
+      debugPrint("Button released",1);
+    }
 }
 
 
@@ -514,14 +526,14 @@ void checkEncoderButton ()  {
 // ------------------------------------------------------------------
 void checkRoomTemp(){
   static unsigned long lastTempCheck = 0;                       // keep track of when last converstion started
-  
+/*  
   if(currentMillis - lastTempCheck > TempSensorConvTime){         // if the last read was more than conversion time: 
     currentTempC = tempSensor.getTempC(tempSensorAddr);           // Read Current Temperature in Degrees C 
     tempSensor.requestTemperaturesByAddress(tempSensorAddr);    // Send request for new temp conversion
     lastTempCheck = currentMillis;                                // reset timer reference for conversion
     updateDisplay_FLAG = true;                                       // Set flag to trigger display update
   }
-  
+*/  
 }
 
 // ------------------------------------------------------------------
@@ -534,25 +546,23 @@ void isr_EncoderKnob()  {
   // Turn on Display Backlight    ************************* Add when doing Display Stuff
   
   if (interruptTime - lastInterruptTime > EncoderBounce) {     // If interrupts come faster than 'EncoderBounce' ms, assume it's a bounce and ignore
-        
+//    debugPrint("knob ISR entered - Not bounce",1);    
     if (digitalRead(EncodeB_PIN) == LOW)    // If encoder moving Counter-Clockwise
     {
-      if(virtualPosition > 0)
+      if(virtualPosition > 0){
         virtualPosition-- ;             // Don't decrement if already 0
-      
-       
+      }
     }
     else {
       if(virtualPosition < LED_PwrMax)
         virtualPosition++ ;             // Don't increment above LED_PWR_Max
-      
-      
     }
   
     LEDsUpdate = true;      // Set Flag to indicate an LED Setting has changed - since in ISR, Something MUST have changed
   }
   
   lastInterruptTime = interruptTime;      // Keep track of when we were here last
+//  debugPrint("Exiting ISR",1);
 }
 
 void isr_ZeroCrossDetect() {
